@@ -35,3 +35,15 @@ fi
 - [ ] Session (chat) support
 - [ ] Caching of responses for the same query
 - [ ] Flags and environment vars for `model`, `temperature` and `top_probability` (`top_p`)
+
+## See also
+
+- [glow](https://github.com/charmbracelet/glow) - markdown highlighting in shell
+
+## Acknowledgements
+
+- [shell-gpt](https://github.com/TheR1D/shell_gpt) - inspiration and example. `slpt` is supposed to be a non-bloated and more UNIX-y version of this.
+
+## License
+
+GPLv3.
