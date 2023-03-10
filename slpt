@@ -1,0 +1,41 @@
+#!/bin/sh
+
+set -ue
+
+: "${SLPT_API_KEY_COMMAND:="echo mysecretpassword"}" # pass show api/openai.com/chatgpt/john-doe
+
+get_content() {
+  response="$(jq -r '.choices[0].message.content')"
+  printf '%s\n' "${response#"${response%%[![:space:]]*}"}"
+}
+
+api_call() {
+  content="${1}"
+  data="$(
+    printf '
+    {
+      "messages": [
+        {
+          "role": "user",
+          "content": "%s"
+        }
+      ],
+      "model": "gpt-3.5-turbo",
+      "temperature": 1,
+      "top_p": 1
+    }' \
+      "${content}"
+  )"
+  # shellcheck disable=2016
+  curl \
+    --silent \
+    --request POST \
+    --header 'Content-Type: application/json' \
+    --header "Authorization: Bearer $(sh -c "${SLPT_API_KEY_COMMAND}")" \
+    --data "${data}" \
+    'https://api.openai.com/v1/chat/completions'
+}
+
+[ "${#}" -lt 1 ] && exit 1
+
+api_call "${*}" | get_content
