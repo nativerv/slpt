@@ -8,11 +8,16 @@
 
 A CLI client for <https://api.openai.com>.
 
-You need to provide an environment variable containing a command that would retrieve the password. See [Environment Variables](#environment-variables)
+You need to provide an environment variable containing a command that would retrieve the password. See [Environment Variables](#environment-variables).
+
+## Dependencies
+
+- `curl`
+- `jq`
 
 ## Examples
 
-```console
+```
 $ slpt mass of the sun
 The mass of the sun is approximately 1.989 x 10^30 kilograms.
 $ slpt give me example of if in posix shell without explanation
