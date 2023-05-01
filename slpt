@@ -7,140 +7,122 @@ DEBUG="${DEBUG:-}"
 
 : "${SLPT_API_KEY_COMMAND:="echo mysecretpassword"}" # example: pass show api/openai.com/chatgpt/john-doe
 : "${XDG_STATE_HOME:="${HOME}/.local/state"}"
+
 SLPT_STATE_HOME="${XDG_STATE_HOME}/slpt"
 SLPT_CHATS_HOME="${SLPT_STATE_HOME}/chats"
-
-SELF_NAME="$(basename "${0}")"
+SLPT_SELF_NAME="$(basename "${0}")"
 
 usage() {
-  printf 'usage: %s PROMPT\n' "${SELF_NAME}" #"$(basename "${0}")"
-  printf 'flags:\n'
-  # printf '  -s | --system    \n'
-  printf '  -c, --chat NAME          specify chat [default: last used] (created if does not exist)\n'
-  printf '  -m, --model NAME         specify model [default: "gpt-3.5-turbo"]\n'
-  # shellcheck disable=2016
-  printf '  -o, --chat-folder PATH   specify folder for chat\n'
-  printf '  -t, --temperature N      specify temperature [default: 1.0]\n'
-  printf '  -p, --top-probability N  specify top probability [default: 1.0]\n'
-  printf '  -s, --system PROMPT      specify system prompt\n'
+	printf 'usage: %s [flags] PROMPT\n' "${SLPT_SELF_NAME}" #"$(basename "${0}")"
+	printf 'flags:\n'
+	# printf '  -s | --system    \n'
+	printf '  -c, --chat NAME          specify chat [default: last used] (created if does not exist)\n'
+	printf '  -m, --model NAME         specify model [default: "gpt-3.5-turbo"]\n'
+	printf '  -o, --chat-folder PATH   specify folder for chat\n'
+	printf '  -t, --temperature N      specify temperature [default: 1.0]\n'
+	printf '  -p, --top-probability N  specify top probability [default: 1.0]\n'
+	printf '  -s, --system PROMPT      specify system prompt\n'
 }
 
 get_content() {
-  response="$(jq -r '.choices[0].message.content')"
-  printf '%s\n' "${response#"${response%%[![:space:]]*}"}"
+	response="$(jq -r '.choices[0].message.content')"
+	printf '%s\n' "${response#"${response%%[![:space:]]*}"}"
 }
 
 escape() {
-  # sed ':a;N;$!ba;s/\n/\\n/g;s/\r/\\r/g;s/\t/\\t/g'
-  jq -R -s . | sed 's/^"//;s/"$//'
+	# sed ':a;N;$!ba;s/\n/\\n/g;s/\r/\\r/g;s/\t/\\t/g'
+	jq -R -s . | sed 's/^"//;s/"$//'
 }
 
 say() {
-  printf '%s: %s\n' "${SELF_NAME}" "${1}" >&2
+	printf '%s: %s\n' "${SLPT_SELF_NAME}" "${1}" >&2
 }
 
 error() {
-  say "ERROR: ${1}"
+	say "ERROR: ${1}"
 }
 
 chat_entry() {
-  printf '\n'
-  printf '{ "role": "%s", "content": "%s" }' \
-    "${1}" \
-    "$(printf '%s' "${2}" | escape)"
+	printf '\n'
+	printf '{ "role": "%s", "content": "%s" }' \
+		"${1}" \
+		"$(printf '%s' "${2}" | escape)"
 }
 
 api_call() {
-  messages="${1}"
-  model="${2:-"gpt-3.5-turbo"}"
-  temperature="${3:-"1.0"}"
-  top_probability="${4:-"1.0"}"
-  system=""
-  data="$(
-    printf '
-    {
-      "messages": %s,
-      "model": "%s",
-      "temperature": %s,
-      "top_p": %s
-    }' \
-      "$(printf '%s' "${messages}" | jq -n '. |= [inputs]')" \
-      "${model}" \
-      "${temperature}" \
-      "${top_probability}"
-  )"
-  # shellcheck disable=2016
-  curl \
-    --silent \
-    --request POST \
-    --header 'Content-Type: application/json' \
-    --header "Authorization: Bearer $(sh -c "${SLPT_API_KEY_COMMAND}")" \
-    --data "${data}" \
-    'https://api.openai.com/v1/chat/completions'
+	messages="${1}"
+	model="${2:-"gpt-3.5-turbo"}"
+	temperature="${3:-"1.0"}"
+	top_probability="${4:-"1.0"}"
+	#system=""
+	data="$(
+		printf '{ "messages": %s, "model": "%s", "temperature": %s, "top_p": %s }' \
+			"$(printf '%s' "${messages}" | jq -n '. |= [inputs]')" \
+			"${model}" \
+			"${temperature}" \
+			"${top_probability}"
+	)"
+	# shellcheck disable=2016
+	curl \
+		--silent \
+		--request POST \
+		--header 'Content-Type: application/json' \
+		--header "Authorization: Bearer $(sh -c "${SLPT_API_KEY_COMMAND}")" \
+		--data "${data}" \
+		'https://api.openai.com/v1/chat/completions'
 }
 
-[ "${#}" -lt 1 ] && usage && exit 1
+main() {
+	# parse options
+	chat=
+	while :; do
+		case $1 in
+		-h | -\? | --help) usage && exit ;;
+		-c | --chat)
+			[ -z "${2}" ] && error '"--chat" requires a non-empty argument.\n' >&2 && exit 1
+			chat="${2}"
+			shift
+			;;
+		--) shift && break ;;
+		-?*) error 'Unknown option: %s\n' "$1" >&2 && usage && exit 1 ;;
+		*) break ;;
+		esac
+		shift
+	done
 
-chat=
-while :; do
-	case $1 in
-    -h | -\? | --help) # Call a "show_help" function to display a synopsis, then exit.
-      usage
-      exit
-      ;;
-    -c | --chat)
-      if [ -z "${2}" ]; then
-        error '"--chat" requires a non-empty argument.\n' >&2
-        exit 1
-      fi
-      chat="${2}"
-      shift
-      ;;
-    --) # End of all options.
-      shift
-      break
-      ;;
-    -?*)
-      error 'Unknown option: %s\n' "$1" >&2
-      usage
-      exit 1
-      ;;
-    *) # Default case: If no more options then break out of the loop.
-      break ;;
-	esac
-	shift
-done
+	# form the request content and message
+	question_escaped="$(printf '%s' "${*}" | escape)"
+	messages_json="$(chat_entry 'user' "${question_escaped}")"
 
-question_escaped="$(printf '%s' "${*}" | escape)"
-messages_json="$(chat_entry 'user' "${question_escaped}")"
+	# handle 'chat' option in requesting - concat existing messages
+	if [ -n "${chat}" ] && [ -f "${SLPT_CHATS_HOME}/${chat}/${chat}.jsonl" ]; then
+		messages_json="$(cat "${SLPT_CHATS_HOME}/${chat}/${chat}.jsonl")${messages_json}"
+	fi
 
-# handle 'chat' option in requesting - concat existing messages
-if [ -n "${chat}" ] && [ -f "${SLPT_CHATS_HOME}/${chat}/${chat}.jsonl" ]; then
-  messages_json="$(cat "${SLPT_CHATS_HOME}/${chat}/${chat}.jsonl")${messages_json}"
-fi
+	# do a request
+	response="$(api_call "${messages_json}")"
 
-# do a request
-response="$(api_call "${messages_json}")"
+	# handle API errors
+	if printf '%s' "${response}" | jq -er 'select(.error != null)' >/dev/null 2>&1; then
+		error "an error from the API."
+		say "kind: $(printf '%s' "${response}" | jq -r '.error.type')"
+		say "message: $(printf '%s' "${response}" | jq -r '.error.message')"
+		exit 1
+	fi
 
-# handle API errors
-if printf '%s' "${response}" | jq -er 'select(.error != null)' >/dev/null 2>&1; then
-  kind="$(printf '%s' "${response}" | jq -r '.error.type')"
-  message="$(printf '%s' "${response}" | jq -r '.error.message')"
-  error "an error from the API."
-  say "kind: ${kind}"
-  say "message: ${message}"
-  exit 1
-fi
+	# get response content
+	content="$(printf '%s' "${response}" | get_content)"
 
-message="$(printf '%s' "${response}" | get_content)"
+	# handle 'chat' option in printing
+	[ -n "${chat}" ] && mkdir -p "${SLPT_CHATS_HOME}/${chat}" && {
+		chat_entry 'user' "${question_escaped}"
+		chat_entry 'assistant' "${content}"
+	} >>"${SLPT_CHATS_HOME}/${chat}/${chat}.jsonl"
 
-# handle 'chat' option in printing
-[ -n "${chat}" ] && mkdir -p "${SLPT_CHATS_HOME}/${chat}" && {
-  chat_entry 'user' "${question_escaped}"
-  chat_entry 'assistant' "${message}"
-} >> "${SLPT_CHATS_HOME}/${chat}/${chat}.jsonl"
+	# print the response
+	[ "${#}" -lt 1 ] && usage && exit 1
+	[ -z "${DEBUG}" ] && printf '%s' "${content}" && exit
+	[ -n "${DEBUG}" ] && printf '%s' "${response}" >&2 && exit
+}
 
-printf '%s' "${message}"
-
-[ -n "${DEBUG}" ] && printf '%s' "${response}" >&2
-
+main "${@}"
