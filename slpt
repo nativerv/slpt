@@ -16,12 +16,14 @@ usage() {
 	printf 'usage: %s [flags] PROMPT\n' "${SLPT_SELF_NAME}" #"$(basename "${0}")"
 	printf 'flags:\n'
 	# printf '  -s | --system    \n'
-	printf '  -c, --chat NAME          specify chat [default: last used] (created if does not exist)\n'
-	printf '  -m, --model NAME         specify model [default: "gpt-3.5-turbo"]\n'
-	printf '  -o, --chat-folder PATH   specify folder for chat\n'
-	printf '  -t, --temperature N      specify temperature [default: 1.0]\n'
-	printf '  -p, --top-probability N  specify top probability [default: 1.0]\n'
-	printf '  -s, --system PROMPT      specify system prompt\n'
+	printf '  -c, --chat NAME          save history to chat NAME (created if does not exist)\n'
+	printf 'subcommands:\n'
+	printf '  list NAME                list history of chat NAME in markdown format\n'
+	# printf '  -m, --model NAME         specify model [default: "gpt-3.5-turbo"]\n'
+	# printf '  -o, --chat-folder PATH   specify folder for chat\n'
+	# printf '  -t, --temperature N      specify temperature [default: 1.0]\n'
+	# printf '  -p, --top-probability N  specify top probability [default: 1.0]\n'
+	# printf '  -s, --system PROMPT      specify system prompt\n'
 }
 
 get_content() {
@@ -47,6 +49,14 @@ chat_entry() {
 	printf '{ "role": "%s", "content": "%s" }' \
 		"${1}" \
 		"$(printf '%s' "${2}" | escape)"
+}
+
+list() {
+  printf '# Chat: %s\n\n' "${1}"
+  printf '%*s\n\n' 8 | tr ' ' '-' 
+  cat "${SLPT_CHATS_HOME}/${1}/${1}.jsonl" |
+    jq -r '"- " + (.role | split("") | .[0] | ascii_upcase) + .role[1:] + ":\n\n" + .content + "\n\n" + "-" * 8 + "\n"' |
+    head -n-1
 }
 
 api_call() {
@@ -76,16 +86,17 @@ main() {
 	# parse options
 	chat=
 	while :; do
-		case $1 in
-		-h | -\? | --help) usage && exit ;;
-		-c | --chat)
-			[ -z "${2}" ] && error '"--chat" requires a non-empty argument.\n' >&2 && exit 1
-			chat="${2}"
-			shift
-			;;
-		--) shift && break ;;
-		-?*) error 'Unknown option: %s\n' "$1" >&2 && usage && exit 1 ;;
-		*) break ;;
+    case $1 in
+      list) [ -n "${2-}" ] && list "${2}" || error "NAME not specified" && usage; exit ;;
+      -h | -\? | --help) usage && exit ;;
+      -c | --chat)
+        [ -z "${2}" ] && error '"--chat" requires a non-empty argument.\n' >&2 && exit 1
+        chat="${2}"
+        shift
+        ;;
+      --) shift && break ;;
+      -?*) error 'Unknown option: %s\n' "$1" >&2 && usage && exit 1 ;;
+      *) break ;;
 		esac
 		shift
 	done
