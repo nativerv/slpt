@@ -4,7 +4,7 @@ _slpt_completion() {
     local chats_dir="${XDG_STATE_HOME:-$HOME/.local/state}/slpt/chats/"
 
     # Handle options
-    if [[ "${COMP_WORDS[COMP_CWORD-1]}" =~ ^-c|--chat$ ]]; then
+    if printf '%s' "${COMP_WORDS[COMP_CWORD-1]}" | grep -q '^-c\|--chat$'; then
         local chat_folders=($(ls $chats_dir))
         COMPREPLY=($(compgen -W "$(printf '%s\n' "${chat_folders[@]}")" -- "${COMP_WORDS[COMP_CWORD]}"))
     elif [[ "${COMP_WORDS[1]}" == "-"* ]]; then
