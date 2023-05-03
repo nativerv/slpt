@@ -1,0 +1,29 @@
+_slpt_completion() {
+    local subcommands="list"
+    local options="-c --chat"
+    local chats_dir="${XDG_STATE_HOME:-$HOME/.local/state}/slpt/chats/"
+
+    # Handle options
+    if [[ "${COMP_WORDS[COMP_CWORD-1]}" =~ ^-c|--chat$ ]]; then
+        local chat_folders=($(ls $chats_dir))
+        COMPREPLY=($(compgen -W "$(printf '%s\n' "${chat_folders[@]}")" -- "${COMP_WORDS[COMP_CWORD]}"))
+    elif [[ "${COMP_WORDS[1]}" == "-"* ]]; then
+        COMPREPLY=($(compgen -W "$options" -- "${COMP_WORDS[COMP_CWORD]}"))
+    # Handle subcommands
+    elif [[ "${COMP_WORDS[1]}" == "list" ]]; then
+        local folders=($(ls $chats_dir))
+        COMPREPLY=($(compgen -W "$(printf '%s\n' "${folders[@]}")" -- "${COMP_WORDS[COMP_CWORD]}"))
+    elif [[ "${COMP_WORDS[COMP_CWORD-1]}" == "list" ]]; then
+        COMPREPLY=($(compgen -d "$(basename $chats_dir)/${COMP_WORDS[COMP_CWORD]}"))
+    # Default to subcommand list
+    else
+        COMPREPLY=($(compgen -W "$subcommands" -- "${COMP_WORDS[COMP_CWORD]}"))
+        # if [[ "${COMP_WORDS[0]}" == "slpt" && "${COMP_WORDS[COMP_CWORD-1]}" == "list" ]]; then
+        #      complete -D -W "List available chat folders" slpt list
+        # fi
+    fi
+}
+
+complete -F _slpt_completion slpt
+
+# vim:ft=bash
