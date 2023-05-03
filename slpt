@@ -13,17 +13,19 @@ SLPT_CHATS_HOME="${SLPT_STATE_HOME}/chats"
 SLPT_SELF_NAME="$(basename "${0}")"
 
 usage() {
-	printf 'usage: %s [flags] PROMPT\n' "${SLPT_SELF_NAME}" #"$(basename "${0}")"
-	printf 'flags:\n'
-	# printf '  -s | --system    \n'
-	printf '  -c, --chat NAME          save history to chat NAME (created if does not exist)\n'
-	printf 'subcommands:\n'
-	printf '  list NAME                list history of chat NAME in markdown format\n'
-	# printf '  -m, --model NAME         specify model [default: "gpt-3.5-turbo"]\n'
-	# printf '  -o, --chat-folder PATH   specify folder for chat\n'
-	# printf '  -t, --temperature N      specify temperature [default: 1.0]\n'
-	# printf '  -p, --top-probability N  specify top probability [default: 1.0]\n'
-	# printf '  -s, --system PROMPT      specify system prompt\n'
+  {
+    printf 'usage: %s [flags] PROMPT\n' "${SLPT_SELF_NAME}" #"$(basename "${0}")"
+    printf 'flags:\n'
+    # printf '  -s | --system    \n'
+    printf '  -c, --chat NAME          save history to chat NAME (created if does not exist)\n'
+    printf 'subcommands:\n'
+    printf '  list NAME                list history of chat NAME in markdown format\n'
+    # printf '  -m, --model NAME         specify model [default: "gpt-3.5-turbo"]\n'
+    # printf '  -o, --chat-folder PATH   specify folder for chat\n'
+    # printf '  -t, --temperature N      specify temperature [default: 1.0]\n'
+    # printf '  -p, --top-probability N  specify top probability [default: 1.0]\n'
+    # printf '  -s, --system PROMPT      specify system prompt\n'
+  } >&2
 }
 
 get_content() {
@@ -87,7 +89,7 @@ main() {
 	chat=
 	while :; do
     case $1 in
-      list) [ -n "${2-}" ] && list "${2}" || error "NAME not specified" && usage; exit ;;
+      list) [ -n "${2-}" ] && list "${2}" || { error "NAME not specified" && usage; }; exit ;;
       -h | -\? | --help) usage && exit ;;
       -c | --chat)
         [ -z "${2}" ] && error '"--chat" requires a non-empty argument.\n' >&2 && exit 1
