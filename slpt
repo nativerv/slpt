@@ -1,12 +1,13 @@
 #!/bin/sh
 
-set -ue
+set -u
 
 DEBUG="${DEBUG:-}"
 [ -n "${DEBUG}" ] && set -x
 
 : "${SLPT_API_KEY_COMMAND:="echo mysecretpassword"}" # example: pass show api/openai.com/chatgpt/john-doe
 : "${XDG_STATE_HOME:="${HOME}/.local/state"}"
+: "${SLPT_API_URL:=""}" # was: https://api.openai.com/v1/chat/completions
 
 SLPT_STATE_HOME="${XDG_STATE_HOME}/slpt"
 SLPT_CHATS_HOME="${SLPT_STATE_HOME}/chats"
@@ -74,16 +75,22 @@ api_call() {
 			"${top_probability}"
 	)"
 	# shellcheck disable=2016
-	curl \
+	response="$(curl \
 		--silent \
 		--request POST \
 		--header 'Content-Type: application/json' \
 		--header "Authorization: Bearer $(sh -c "${SLPT_API_KEY_COMMAND}")" \
 		--data "${data}" \
-		'https://api.openai.com/v1/chat/completions'
+    "${SLPT_API_URL}")" || { error 'requesting URL provided in `SLPT_API_URL`: '"'${SLPT_API_URL}'" && exit 1; }
+  printf '%s' "${response}"
 }
 
 main() {
+  [ -n "${SLPT_API_URL}" ] || {
+    error '`SLPT_API_URL` must contain an OpenAI-compatible chat completions API URL'
+    exit 1
+  }
+
 	# parse options
 	chat=
 	model=
